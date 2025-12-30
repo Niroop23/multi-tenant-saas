@@ -8,9 +8,13 @@ __pycache__/
 env/
 venv/
 .venv/
-ENV/
-.env/
-.env.*
+
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
 
 
 *.sqlite3
