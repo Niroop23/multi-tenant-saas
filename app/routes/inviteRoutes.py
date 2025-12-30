@@ -62,7 +62,7 @@ def create_invite(org_id:UUID,payload:InviteCreate,db:Session=Depends(get_db),me
         403: {"description": "Forbidden", "content": {"application/json": {"example": {"detail": "Forbidden"}}}},
     },
 )
-def list_invites(org_id:UUID,db:Session=Depends(get_db)):
+def list_invites(org_id:UUID,db:Session=Depends(get_db),_=Depends(required_org_role("admin","owner"))):
     
     return (
         db.query(OrgInvite).filter(OrgInvite.org_id==org_id).order_by(OrgInvite.created_at.desc()).all()
