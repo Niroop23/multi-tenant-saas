@@ -13,7 +13,17 @@ from app.schemas.org import OrgCreate, OrgResponse
 
 router=APIRouter(prefix="/orgs",tags=["Organizations"])
 
-@router.post("",status_code=status.HTTP_201_CREATED,response_model=OrgResponse)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=OrgResponse,
+    responses={
+        409: {
+            "description": "Conflict",
+            "content": {"application/json": {"example": {"detail": "organization already exists"}}},
+        }
+    },
+)
 def create_org(payload:OrgCreate,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
     
     existing=db.query(Organization).filter(Organization.name==payload.name).first()
@@ -65,7 +75,14 @@ def list_orgs(db:Session=Depends(get_db),current_user:User=Depends(get_current_u
     ]
     
 
-@router.delete("/{org_id}",status_code=status.HTTP_204_NO_CONTENT,dependencies=[Depends(required_org_role("owner"))])
+@router.delete(
+    "/{org_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(required_org_role("owner"))],
+    responses={
+        404: {"description": "Not Found", "content": {"application/json": {"example": {"detail": "Organization not found"}}}}
+    },
+)
 def delete_org(org_id:UUID,db:Session=Depends(get_db)):
     
     org=db.query(Organization).filter(Organization.id == org_id).first()

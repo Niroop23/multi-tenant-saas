@@ -14,7 +14,19 @@ from app.models.membership import Membership
 router=APIRouter(prefix="/orgs/{org_id}/invites",tags=["Org Invites"])
 
 
-@router.post("",response_model=InviteOut,status_code=status.HTTP_201_CREATED,)
+@router.post(
+    "",
+    response_model=InviteOut,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        409: {
+            "description": "Conflict",
+            "content": {
+                "application/json": {"example": {"detail": "Outgoing invite to this email already exists"}}
+            },
+        }
+    },
+)
 def create_invite(org_id:UUID,payload:InviteCreate,db:Session=Depends(get_db),membership=Depends(required_org_role("owner","admin"))):
     
     existing=(
@@ -41,14 +53,42 @@ def create_invite(org_id:UUID,payload:InviteCreate,db:Session=Depends(get_db),me
     return invite
 
 
-@router.get("",response_model=list[InviteOut],dependencies=[Depends(required_org_role("owner","admin"))])
+@router.get(
+    "",
+    response_model=list[InviteOut],
+    dependencies=[Depends(required_org_role("owner","admin"))],
+    responses={
+        401: {"description": "Unauthorized", "content": {"application/json": {"example": {"detail": "Unauthorized"}}}},
+        403: {"description": "Forbidden", "content": {"application/json": {"example": {"detail": "Forbidden"}}}},
+    },
+)
 def list_invites(org_id:UUID,db:Session=Depends(get_db)):
     
     return (
         db.query(OrgInvite).filter(OrgInvite.org_id==org_id).order_by(OrgInvite.created_at.desc()).all()
     )
     
-@router.post("/{invite_id}/accept",status_code=status.HTTP_200_OK)
+@router.post(
+    "/{invite_id}/accept",
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {"description": "Not Found", "content": {"application/json": {"example": {"detail": "Invite not found"}}}},
+        400: {"description": "Bad Request", "content": {"application/json": {"example": {"detail": "Invite isnt pending"}}}},
+        403: {
+            "description": "Forbidden",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "expired": {"summary": "Invite expired", "value": {"detail": "Invite expired"}},
+                        "email_mismatch": {"summary": "Email mismatch", "value": {"detail": "Invite email doesnt match with the current user"}},
+                    }
+                }
+            }
+        },
+        409: {"description": "Conflict", "content": {"application/json": {"example": {"detail": "Already an existing member"}}}},
+        200: {"description": "OK", "content": {"application/json": {"example": {"message": "Invite accepted"}}}},
+    },
+)
 def accept_invite(org_id:UUID,
                   invite_id:UUID,
                   db:Session=Depends(get_db),
@@ -90,7 +130,16 @@ def accept_invite(org_id:UUID,
     
     return {"message":"Invite accepted"}
 
-@router.post("/{invite_id}/revoke",status_code=status.HTTP_200_OK,dependencies=[Depends(required_org_role("owner"))])
+@router.post(
+    "/{invite_id}/revoke",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(required_org_role("owner"))],
+    responses={
+        404: {"description": "Not Found", "content": {"application/json": {"example": {"detail": "Invite not found"}}}},
+        400: {"description": "Bad Request", "content": {"application/json": {"example": {"detail": "Invite pending"}}}},
+        200: {"description": "OK", "content": {"application/json": {"example": {"message": "Invite revoked"}}}},
+    },
+)
 def revoke_invite(org_id:UUID,invite_id:UUID,db:Session=Depends(get_db)):
     invite=(
         db.query(OrgInvite).filter(

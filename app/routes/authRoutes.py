@@ -15,7 +15,18 @@ from app.core.security import create_access_token, decode_and_verify_refresh_tok
 router=APIRouter(prefix="/auth",tags=["Auth"])
 
 
-@router.post("/register",response_model=UserOut)
+@router.post(
+    "/register",
+    response_model=UserOut,
+    responses={
+        409: {
+            "description": "Conflict",
+            "content": {
+                "application/json": {"example": {"detail": "User already exists"}}
+            },
+        }
+    },
+)
 def register_user(payload:UserCreate,db:Session=Depends(get_db)):
     username=payload.username.lower()
     
@@ -36,7 +47,24 @@ def register_user(payload:UserCreate,db:Session=Depends(get_db)):
     
     return user
 
-@router.post("/login",response_model=Token)
+@router.post(
+    "/login",
+    response_model=Token,
+    responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {
+                "application/json": {"example": {"detail": "Invalid credentials"}}
+            },
+        },
+        403: {
+            "description": "Forbidden",
+            "content": {
+                "application/json": {"example": {"detail": "Inactive user"}}
+            },
+        },
+    },
+)
 def login(payload:LoginRequest,db:Session=Depends(get_db)):
     user=(db.query(User).filter(
         or_(
@@ -79,7 +107,29 @@ def login(payload:LoginRequest,db:Session=Depends(get_db)):
         "token_type":"bearer",
     }
     
-@router.post("/login/org/{org_id}",response_model=Token)
+@router.post(
+    "/login/org/{org_id}",
+    response_model=Token,
+    responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {
+                "application/json": {"example": {"detail": "Invalid credentials"}}
+            },
+        },
+        403: {
+            "description": "Forbidden",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "inactive": {"summary": "Inactive user", "value": {"detail": "Inactive user"}},
+                        "not_member": {"summary": "Not a member", "value": {"detail": "Not a member of this organization"}},
+                    }
+                }
+            },
+        },
+    },
+)
 def login_with_org(
     org_id:UUID,
     payload:LoginRequest,
@@ -132,7 +182,16 @@ def login_with_org(
     }
     
     
-@router.post("/logout",status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {"application/json": {"example": {"detail": "Unauthorized"}}},
+        }
+    },
+)
 def logout(refresh_token:str,db:Session=Depends(get_db)):
     
     user_id,jti=decode_and_verify_refresh_token(refresh_token)
@@ -151,7 +210,16 @@ def logout(refresh_token:str,db:Session=Depends(get_db)):
     token_entry.is_revoked=True
     db.commit()
     
-@router.post("/logout-all",status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {"application/json": {"example": {"detail": "Unauthorized"}}},
+        }
+    },
+)
 def logout_all(current_user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     
     db.query(RefreshToken).filter(
@@ -163,7 +231,18 @@ def logout_all(current_user:User=Depends(get_current_user),db:Session=Depends(ge
     
     
     
-@router.post("/refresh",response_model=Token)
+@router.post(
+    "/refresh",
+    response_model=Token,
+    responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {
+                "application/json": {"example": {"detail": "Refresh token revoked or reused"}}
+            },
+        }
+    },
+)
 def refresh_token(refresh_token:str,db:Session=Depends(get_db)):
     user_id,jti=decode_and_verify_refresh_token(refresh_token)
     
