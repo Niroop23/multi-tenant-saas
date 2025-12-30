@@ -1,0 +1,5 @@
+OWNER = "owner"
+ADMIN="admin"
+MEMBER="member"
+
+ORG_ROLES={OWNER,ADMIN,MEMBER}
