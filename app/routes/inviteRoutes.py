@@ -43,7 +43,7 @@ def create_invite(org_id:UUID,payload:InviteCreate,db:Session=Depends(get_db),me
     invite=OrgInvite(org_id=org_id,
                      email=payload.email,
                      role=payload.role,
-                     invited_by=membership.user_id,
+                     invited_by=getattr(membership,"user_id",None) or membership.id,
                      expires_at=datetime.now(timezone.utc)+timedelta(days=settings.INVITE_EXPIRE_DAYS))
     db.add(invite)
     db.commit()
