@@ -1,7 +1,8 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, Header, status
-from app.core.security import get_current_user, verify_access_token
+from types import SimpleNamespace
+from app.core.security import  verify_access_token
 from app.database.session import get_db
 from app.models.membership import Membership
 from app.models.user import User
@@ -21,7 +22,7 @@ def get_current_membership(
             detail="Org ID mismatch between path and X-Org-Id header",
         )
         
-    creds_exception=HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="couldn't validate credentials")
+    creds_exception=HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="couldn't validate credentials",headers={"WWW-Authenticate":"Bearer"},)
     
     token_data=verify_access_token(credentials.credentials,creds_exception)
 
@@ -33,7 +34,11 @@ def get_current_membership(
             detail="Organization id is missing ",
         )
     if token_data.org_id== effective_org_id and token_data.role:
-        return token_data
+        return SimpleNamespace(
+            user_id=token_data.id,
+            org_id=token_data.org_id,
+            role=token_data.role,
+        )
 
     membership = (
         db.query(Membership)
