@@ -25,18 +25,13 @@ def verify_password(plain:str, hashed:str)->bool:
 
 #jwt_stuff
 
-def create_access_token(
-    *,
-    user_id:UUID,
-    org_id:UUID|None=None,
-    role:str|None=None,
-    )->str:
-    expire = datetime.now(timezone.utc)+timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    payload={
-        "sub":str(user_id),
-        "type":"access",
-        "exp":expire,
+def create_access_token(user_id: UUID, org_id: UUID | None = None, role: str | None = None) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    payload = {
+        "sub": str(user_id),
+        "type": "access",
+        "exp": expire,
     }
     
     if org_id:
@@ -50,7 +45,14 @@ def create_access_token(
     return jwt_encoded   
 
 
-def verify_access_token(token:str,creds_exception):
+def verify_access_token(token: str, creds_exception: None = None):
+    if creds_exception is None:
+        creds_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Couldn't validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload=jwt.decode(token,settings.JWT_SECRET_KEY,algorithms=[settings.JWT_ALGORITHM])
         
